@@ -1,0 +1,176 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ============================================================
+   Mastech ADEPT brand theme tokens — ported verbatim from
+   "Mastech Agentic Platform — Brand Theme.html". Keep in sync
+   with src/theme/brand.js (BRAND / BRAND_DARK).
+   ============================================================ */
+:root {
+  --teal-primary: #0f6d6b;
+  --teal-deep: #0f504e;
+  --ink: #0a3645;
+  --green: #06e478;
+  --green-bright: #00ef7b;
+  --white: #ffffff;
+  --surface-light: #f3f6f7;
+  --border-brand: #c6c6c6;
+
+  --bg: #ffffff;
+  --surface: #f3f6f7;
+  --surface-alt: #e8edee;
+  --border: #c6c6c6;
+  --text-primary: #0a3645;
+  --text-secondary: #4a6a72;
+  --accent: #0f6d6b;
+  --accent-hover: #0f504e;
+  --on-accent: #ffffff;
+  --focus-ring: #0f6d6b;
+
+  --success: #06e478;
+  --error: #d93025;
+  --warning: #e97132;
+  --info: #0f9ed5;
+
+  --font-head: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+:root[data-theme="dark"] {
+  --bg: #0a3645;
+  --surface: #0f504e;
+  --surface-alt: #0f6d6b;
+  --border: #1e5f62;
+  --text-primary: #ffffff;
+  --text-secondary: #bfd6d5;
+  --accent: #06e478;
+  --accent-hover: #00ef7b;
+  --on-accent: #062b2a;
+  --focus-ring: #06e478;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0a3645;
+    --surface: #0f504e;
+    --surface-alt: #0f6d6b;
+    --border: #1e5f62;
+    --text-primary: #ffffff;
+    --text-secondary: #bfd6d5;
+    --accent: #06e478;
+    --accent-hover: #00ef7b;
+    --on-accent: #062b2a;
+    --focus-ring: #06e478;
+  }
+}
+
+/* ---- Base typography (ADEPT: Space Grotesk headings / Inter body) ----- */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ---- Enterprise navigation tab bar ------------------------------------ */
+/* Plain surface bar with a border, matching the ADEPT topbar pattern —
+   brand color is reserved for the active-tab fill, not the whole bar. */
+.nav-tabbar {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-tabbar__inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.nav-tabbar__inner::-webkit-scrollbar {
+  height: 6px;
+}
+.nav-tabbar__inner::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.nav-tab .nav-tab__icon {
+  font-size: 15px;
+  opacity: 0.95;
+  display: inline-flex;
+}
+
+.nav-tab:hover {
+  background: var(--surface-alt);
+  color: var(--text-primary);
+}
+
+.nav-tab--active,
+.nav-tab--active:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* Keyboard accessibility: visible focus ring everywhere. */
+*:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---- Section headers (card + collapse titles) -------------------------- */
+.ant-card-head-title,
+.ant-card-head-title > * {
+  color: var(--text-primary);
+  font-family: var(--font-head);
+  font-weight: 600;
+}
+
+.ant-collapse-header .ant-collapse-header-text {
+  color: var(--text-primary);
+  font-family: var(--font-head);
+  font-weight: 600;
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-tab {
+    transition: none;
+  }
+}

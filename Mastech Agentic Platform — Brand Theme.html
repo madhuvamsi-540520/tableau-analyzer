@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mastech Design System — ADEPT Brand Theme</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   THESE ARE THE EXACT TOKENS FROM THE ADEPT APPLICATION.
+   Copy this block verbatim into any new Mastech surface.
+   ============================================================ */
+:root{
+  --teal-primary:#0F6D6B;
+  --teal-deep:#0F504E;
+  --ink:#0A3645;
+  --green:#06E478;
+  --green-bright:#00EF7B;
+  --white:#FFFFFF;
+  --surface-light:#F3F6F7;
+  --border-brand:#C6C6C6;
+
+  --bg:#FFFFFF;
+  --surface:#F3F6F7;
+  --surface-alt:#E8EDEE;
+  --border:#C6C6C6;
+  --text-primary:#0A3645;
+  --text-secondary:#4A6A72;
+  --accent:#0F6D6B;
+  --accent-hover:#0F504E;
+  --on-accent:#FFFFFF;
+  --focus-ring:#0F6D6B;
+
+  --success:#06E478;
+  --error:#D93025;
+  --warning:#E97132;
+  --info:#0F9ED5;
+
+  --font-head:"Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body:"Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm:6px;
+  --radius-md:10px;
+  --radius-lg:16px;
+}
+:root[data-theme="dark"]{
+  --bg:#0A3645;
+  --surface:#0F504E;
+  --surface-alt:#0F6D6B;
+  --border:#1E5F62;
+  --text-primary:#FFFFFF;
+  --text-secondary:#BFD6D5;
+  --accent:#06E478;
+  --accent-hover:#00EF7B;
+  --on-accent:#062B2A;
+  --focus-ring:#06E478;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){
+    --bg:#0A3645; --surface:#0F504E; --surface-alt:#0F6D6B; --border:#1E5F62;
+    --text-primary:#FFFFFF; --text-secondary:#BFD6D5; --accent:#06E478;
+    --accent-hover:#00EF7B; --on-accent:#062B2A; --focus-ring:#06E478;
+  }
+}
+
+/* ---------------- page chrome (not part of the token spec) ---------------- */
+*{box-sizing:border-box;}
+html,body{margin:0; height:100%;}
+body{
+  background:var(--bg); color:var(--text-primary); font-family:var(--font-body);
+  font-weight:400; line-height:1.55; -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+h1,h2,h3,h4{font-family:var(--font-head); font-weight:700; letter-spacing:-0.01em; margin:0;}
+p{margin:0;}
+a{color:var(--accent);}
+*:focus-visible{outline:2px solid var(--focus-ring); outline-offset:2px; border-radius:4px;}
+
+.wrap{max-width:1080px; margin:0 auto; padding:0 28px 100px;}
+
+.topbar{
+  position:sticky; top:0; z-index:20; background:var(--bg); border-bottom:1px solid var(--border);
+  padding:16px 28px; padding-top:calc(16px + env(safe-area-inset-top,0px));
+  display:flex; align-items:center; gap:14px; justify-content:space-between;
+}
+.topbar .brand{display:flex; align-items:center; gap:10px;}
+.brand-mark{
+  width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#0F6D6B,#06E478);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-weight:700;
+  color:#062B2A; font-size:14px; flex:0 0 auto;
+}
+.topbar .brand b{font-family:var(--font-head); font-size:15px;}
+.topbar .brand span{display:block; font-size:11px; color:var(--text-secondary);}
+
+.theme-toggle{display:flex; gap:2px; background:var(--surface); border:1px solid var(--border); border-radius:100px; padding:2px;}
+.theme-toggle button{border:none; background:transparent; padding:6px 12px; border-radius:100px; cursor:pointer; font-size:12.5px; color:var(--text-secondary); font-family:var(--font-body);}
+.theme-toggle button.active{background:var(--accent); color:var(--on-accent); font-weight:500;}
+
+.hero{
+  border-radius:20px; padding:48px 40px; margin:28px 0 36px; color:#fff;
+  background:linear-gradient(135deg,#0A3645,#0F504E,#0F6D6B);
+}
+.hero .eyebrow{font-size:13px; color:#9FE0D2; margin-bottom:12px;}
+.hero h1{font-size:34px; color:#fff; max-width:640px; line-height:1.15;}
+.hero p{font-size:15px; color:#CFE7E4; max-width:560px; margin-top:14px; line-height:1.6;}
+
+h2.section-title{font-size:21px; margin:56px 0 6px;}
+.section-desc{font-size:13.5px; color:var(--text-secondary); margin-bottom:20px;}
+
+.swatch-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px;}
+.swatch{border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; background:var(--surface);}
+.swatch .chip{height:76px;}
+.swatch .meta{padding:12px 14px;}
+.swatch .name{font-size:13px; font-weight:500;}
+.swatch .hex{font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--text-secondary); margin-top:2px;}
+.swatch .token{font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--text-secondary); margin-top:6px; word-break:break-all;}
+.swatch button.copy{
+  margin-top:8px; font-size:11px; padding:3px 9px; border-radius:100px; border:1px solid var(--border);
+  background:var(--surface-alt); color:var(--text-secondary); cursor:pointer; font-family:var(--font-body);
+}
+.swatch button.copy:hover{color:var(--text-primary);}
+
+.type-row{display:flex; align-items:baseline; gap:18px; padding:18px 0; border-bottom:1px solid var(--border);}
+.type-row:last-child{border-bottom:none;}
+.type-row .label{width:150px; flex:0 0 auto; font-size:12px; color:var(--text-secondary); font-family:ui-monospace,Menlo,monospace;}
+.type-row .sample{flex:1;}
+
+.state-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border);}
+.state-row:last-child{border-bottom:none;}
+.state-dot{width:14px; height:14px; border-radius:50%; flex:0 0 auto;}
+.state-row .label{font-size:13.5px; font-weight:500; width:90px; flex:0 0 auto;}
+.state-row .hex{font-family:ui-monospace,Menlo,monospace; font-size:12.5px; color:var(--text-secondary); width:90px; flex:0 0 auto;}
+.state-row .note{font-size:12.5px; color:var(--text-secondary);}
+
+.component-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--surface); padding:24px; margin-bottom:16px;}
+.component-card b.ctitle{font-size:13px; display:block; margin-bottom:16px; color:var(--text-secondary); text-transform:none;}
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+
+.btn{display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:var(--radius-sm); font-size:14px; font-weight:500; cursor:pointer; border:1px solid transparent; font-family:var(--font-body);}
+.btn-primary{background:var(--accent); color:var(--on-accent);}
+.btn-secondary{background:transparent; color:var(--text-primary); border-color:var(--border);}
+.btn-ghost{background:transparent; color:var(--text-secondary); border-color:transparent;}
+
+.badge{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:500; padding:3px 9px; border-radius:100px;}
+.badge-success{background:rgba(6,228,120,.14); color:#0F6D6B;}
+:root[data-theme="dark"] .badge-success{color:#8BF3C1;}
+.badge-error{background:rgba(217,48,37,.12); color:#D93025;}
+.badge-warning{background:rgba(233,113,50,.14); color:#B65623;}
+:root[data-theme="dark"] .badge-warning{color:#F2B48A;}
+.badge-info{background:rgba(15,158,213,.14); color:#0F9ED5;}
+.badge-neutral{background:var(--surface-alt); color:var(--text-secondary);}
+
+.rule-list{font-size:13.5px; line-height:1.9;}
+.rule-list li{margin-bottom:4px;}
+
+.contrast-table{width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;}
+.contrast-table th{text-align:left; font-weight:500; color:var(--text-secondary); font-size:11.5px; padding:8px 10px; border-bottom:1px solid var(--border);}
+.contrast-table td{padding:9px 10px; border-bottom:1px solid var(--border);}
+
+.code-block{background:var(--ink); color:#D7ECEA; border-radius:var(--radius-md); padding:18px; font-size:12.5px; line-height:1.7; overflow-x:auto; white-space:pre; font-family:ui-monospace,Menlo,monospace;}
+:root[data-theme="dark"] .code-block{background:#062B2A;}
+
+.footer{margin-top:60px; padding-top:20px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary);}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">A</div>
+    <div><b>Mastech Design System</b><span>ADEPT brand theme reference</span></div>
+  </div>
+  <div class="theme-toggle" id="themeToggle">
+    <button data-mode="light">☼ Light</button>
+    <button data-mode="system">◐ System</button>
+    <button data-mode="dark">☾ Dark</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow">Brand Theme — Non-negotiable</div>
+    <h1>One token system. Every Mastech surface follows it.</h1>
+    <p>These are the exact CSS custom properties used in ADEPT. No hardcoded hex values outside this block, no framework default palettes (no Tailwind defaults, no Material palette, no shadcn zinc) — every component references these semantic tokens.</p>
+  </section>
+
+  <h2 class="section-title">Brand colors</h2>
+  <p class="section-desc">The source palette. Used directly only for brand marks, gradients and illustration — everyday UI uses the semantic tokens below instead.</p>
+  <div class="swatch-grid" id="brandSwatches"></div>
+
+  <h2 class="section-title">Semantic tokens — Light theme</h2>
+  <p class="section-desc">What every component actually references. Click any swatch to copy its CSS variable name.</p>
+  <div class="swatch-grid" id="lightSwatches"></div>
+
+  <h2 class="section-title">Semantic tokens — Dark theme</h2>
+  <p class="section-desc">Same variable names, different values — components never branch on theme, only the token values change.</p>
+  <div class="swatch-grid" id="darkSwatches"></div>
+
+  <h2 class="section-title">Semantic states</h2>
+  <p class="section-desc">Always pair with an icon and a text label — never signal state by color alone.</p>
+  <div id="stateRows"></div>
+
+  <h2 class="section-title">Typography</h2>
+  <p class="section-desc">Two families, clearly distinct roles. Self-hosted where possible; Google Fonts as fallback for web contexts.</p>
+  <div class="component-card">
+    <div class="type-row"><div class="label">Space Grotesk 700</div><div class="sample" style="font-family:'Space Grotesk'; font-weight:700; font-size:28px;">Agentic Data Modernization</div></div>
+    <div class="type-row"><div class="label">Space Grotesk 500</div><div class="sample" style="font-family:'Space Grotesk'; font-weight:500; font-size:20px;">Conversion Workbench</div></div>
+    <div class="type-row"><div class="label">Inter 500</div><div class="sample" style="font-family:'Inter'; font-weight:500; font-size:15px;">Discovery Agent — evidence</div></div>
+    <div class="type-row"><div class="label">Inter 400</div><div class="sample" style="font-family:'Inter'; font-weight:400; font-size:15px;">Parses source metadata, builds the dependency graph and identifies transformations and business rules.</div></div>
+    <div class="type-row"><div class="label">Inter 300</div><div class="sample" style="font-family:'Inter'; font-weight:300; font-size:15px;">Illustrative Demo Data · body copy at its lightest weight.</div></div>
+  </div>
+  <div class="rule-list">
+    <ul>
+      <li><b>Headings:</b> Space Grotesk, weights 500 / 700 only.</li>
+      <li><b>Body / UI:</b> Inter, weights 300 / 400 / 500 only.</li>
+      <li>Fallback stack: <code>ui-sans-serif, system-ui, sans-serif</code></li>
+      <li>Body line-height minimum: <code>1.5</code></li>
+      <li>Use <code>font-display: swap</code> when loading from Google Fonts.</li>
+    </ul>
+  </div>
+
+  <h2 class="section-title">Components</h2>
+  <p class="section-desc">Reference renders, live in both themes via the toggle above.</p>
+
+  <div class="component-card">
+    <b class="ctitle">Buttons</b>
+    <div class="row">
+      <button class="btn btn-primary">Primary action</button>
+      <button class="btn btn-secondary">Secondary action</button>
+      <button class="btn btn-ghost">Ghost action</button>
+    </div>
+  </div>
+
+  <div class="component-card">
+    <b class="ctitle">Status badges</b>
+    <div class="row">
+      <span class="badge badge-success">✓ Completed</span>
+      <span class="badge badge-warning">! Needs Review</span>
+      <span class="badge badge-error">✕ Failed</span>
+      <span class="badge badge-info">◐ Running</span>
+      <span class="badge badge-neutral">○ Queued</span>
+    </div>
+  </div>
+
+  <div class="component-card">
+    <b class="ctitle">Cards &amp; surfaces</b>
+    <div class="row" style="align-items:stretch;">
+      <div style="flex:1; min-width:200px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">KPI label</div>
+        <div style="font-family:var(--font-head); font-size:24px; font-weight:700;">94.2%</div>
+      </div>
+      <div style="flex:1; min-width:200px; background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+        <div style="font-size:12px; color:var(--text-secondary);">surface-alt example</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-title">Dark hero gradient</h2>
+  <p class="section-desc">Used for hero sections and presentation-style full-bleed moments.</p>
+  <div class="code-block">background: linear-gradient(
+  135deg,
+  #0A3645,
+  #0F504E,
+  #0F6D6B
+);</div>
+
+  <h2 class="section-title">Accessibility rules</h2>
+  <div class="rule-list">
+    <ul>
+      <li>All text/background combinations must meet WCAG AA: 4.5:1 for body text, 3:1 for large text and UI boundaries.</li>
+      <li><b>Light-mode green (<code>--green</code> / <code>--green-bright</code>) is never used as text or small labels</b> — contrast against white fails. Use teal (<code>--accent</code>) for light-mode links and text instead.</li>
+      <li>Never remove focus indication. Every interactive element gets a 2px <code>--focus-ring</code> outline, 2px offset.</li>
+      <li>Charts default to neutral gray; reserve the accent color for the one series that matters. Sequential data uses the teal→green ramp (<code>#0A3645 → #0F6D6B → #06E478</code>), never a rainbow scale.</li>
+    </ul>
+  </div>
+  <table class="contrast-table">
+    <thead><tr><th>Pairing</th><th>Ratio</th><th>Passes AA?</th></tr></thead>
+    <tbody>
+      <tr><td><code>--text-primary</code> on <code>--bg</code> (light)</td><td>~13.9:1</td><td>✓ body + large text</td></tr>
+      <tr><td><code>--on-accent</code> on <code>--accent</code> (light)</td><td>~5.4:1</td><td>✓ body + large text</td></tr>
+      <tr><td><code>--green</code> on <code>--bg</code> (light)</td><td>~1.7:1</td><td>✕ fails — illustration/brand only, never text</td></tr>
+      <tr><td><code>--text-primary</code> on <code>--bg</code> (dark)</td><td>~14.9:1</td><td>✓ body + large text</td></tr>
+      <tr><td><code>--on-accent</code> on <code>--accent</code> (dark)</td><td>~9.8:1</td><td>✓ body + large text</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Mastech Design System · ADEPT brand theme · Illustrative Demo Data<br>
+    Copy the token block at the top of this page's source verbatim into any new surface — never hardcode a hex value outside it.
+  </div>
+
+</div>
+
+<script>
+const BRAND = [
+  ["Teal Primary","--teal-primary","#0F6D6B"],
+  ["Teal Deep","--teal-deep","#0F504E"],
+  ["Ink","--ink","#0A3645"],
+  ["Green","--green","#06E478"],
+  ["Green Bright","--green-bright","#00EF7B"],
+  ["White","--white","#FFFFFF"],
+  ["Surface Light","--surface-light","#F3F6F7"],
+  ["Border Brand","--border-brand","#C6C6C6"]
+];
+const LIGHT = [
+  ["bg","--bg","#FFFFFF"],["surface","--surface","#F3F6F7"],["surface-alt","--surface-alt","#E8EDEE"],
+  ["border","--border","#C6C6C6"],["text-primary","--text-primary","#0A3645"],["text-secondary","--text-secondary","#4A6A72"],
+  ["accent","--accent","#0F6D6B"],["accent-hover","--accent-hover","#0F504E"],["on-accent","--on-accent","#FFFFFF"],["focus-ring","--focus-ring","#0F6D6B"]
+];
+const DARK = [
+  ["bg","--bg","#0A3645"],["surface","--surface","#0F504E"],["surface-alt","--surface-alt","#0F6D6B"],
+  ["border","--border","#1E5F62"],["text-primary","--text-primary","#FFFFFF"],["text-secondary","--text-secondary","#BFD6D5"],
+  ["accent","--accent","#06E478"],["accent-hover","--accent-hover","#00EF7B"],["on-accent","--on-accent","#062B2A"],["focus-ring","--focus-ring","#06E478"]
+];
+const STATES = [
+  ["Success","--success","#06E478","Completed states, positive confidence"],
+  ["Error","--error","#D93025","Failed states, rejected items"],
+  ["Warning","--warning","#E97132","Needs-review states, medium risk"],
+  ["Info","--info","#0F9ED5","Running states, informational badges"]
+];
+
+function swatchHtml(name, token, hex){
+  return `<div class="swatch">
+    <div class="chip" style="background:${hex};"></div>
+    <div class="meta">
+      <div class="name">${name}</div>
+      <div class="hex">${hex}</div>
+      <div class="token">${token}</div>
+      <button class="copy" onclick="copyToken('${token}', this)">Copy var()</button>
+    </div>
+  </div>`;
+}
+function copyToken(token, btn){
+  const text = 'var('+token+')';
+  navigator.clipboard?.writeText(text).catch(()=>{});
+  const orig = btn.textContent;
+  btn.textContent = 'Copied ✓';
+  setTimeout(()=> btn.textContent = orig, 1400);
+}
+
+document.getElementById('brandSwatches').innerHTML = BRAND.map(([n,t,h])=>swatchHtml(n,t,h)).join('');
+document.getElementById('lightSwatches').innerHTML = LIGHT.map(([n,t,h])=>swatchHtml(n,t,h)).join('');
+document.getElementById('darkSwatches').innerHTML = DARK.map(([n,t,h])=>swatchHtml(n,t,h)).join('');
+document.getElementById('stateRows').innerHTML = STATES.map(([label,token,hex,note])=>`
+  <div class="state-row">
+    <div class="state-dot" style="background:${hex};"></div>
+    <div class="label">${label}</div>
+    <div class="hex">${hex}</div>
+    <div class="note">${note}</div>
+  </div>
+`).join('');
+
+function applyTheme(mode){
+  const root = document.documentElement;
+  if(mode==='light'||mode==='dark'){ root.setAttribute('data-theme',mode); }
+  else { root.removeAttribute('data-theme'); }
+  document.querySelectorAll('#themeToggle button').forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
+  try{ localStorage.setItem('styleguide-theme', mode); }catch(e){}
+}
+document.querySelectorAll('#themeToggle button').forEach(b=>{
+  b.addEventListener('click', ()=> applyTheme(b.dataset.mode));
+});
+let initial = 'system';
+try{ initial = localStorage.getItem('styleguide-theme') || 'system'; }catch(e){}
+applyTheme(initial);
+</script>
+
+</body>
+</html>
