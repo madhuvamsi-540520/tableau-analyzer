@@ -15,7 +15,7 @@ TWB_DIR = Path(__file__).resolve().parent / "fixtures" / "twb"
 
 def _full_wb(name="All Visual Sample.twb"):
     raw = (TWB_DIR / name).read_bytes()
-    twb_bytes, packaging = validate_and_prepare(name, raw)
+    twb_bytes, packaging, _flat_blobs = validate_and_prepare(name, raw)
     return analyze(twb_bytes, name.replace(".twb", ""), raw, packaging)
 
 

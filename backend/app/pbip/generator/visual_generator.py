@@ -43,11 +43,30 @@ def _projection(field: ProjectionField) -> dict:
     }
 
 
-def build_visual(worksheet: Worksheet, visual_id: str) -> dict:
+_FULL_PAGE_POSITION = {"x": 16, "y": 16, "z": 0, "height": 688, "width": 1248, "tabOrder": 0}
+
+# Stacked layout for a composed (dashboard) page: each member worksheet gets
+# its own band, in order, on one page.
+_STACK_HEIGHT = 220
+_STACK_GAP = 16
+
+
+def stacked_position(index: int) -> dict:
+    return {
+        "x": 16,
+        "y": _STACK_GAP + index * (_STACK_HEIGHT + _STACK_GAP),
+        "z": index,
+        "height": _STACK_HEIGHT,
+        "width": 1248,
+        "tabOrder": index,
+    }
+
+
+def build_visual(worksheet: Worksheet, visual_id: str, position: dict | None = None) -> dict:
     return {
         "$schema": f"{_S}/item/report/definition/visualContainer/2.9.0/schema.json",
         "name": visual_id,
-        "position": {"x": 16, "y": 16, "z": 0, "height": 688, "width": 1248, "tabOrder": 0},
+        "position": position or _FULL_PAGE_POSITION,
         "visual": {
             "visualType": "tableEx",
             "query": {
@@ -65,11 +84,11 @@ def build_visual(worksheet: Worksheet, visual_id: str) -> dict:
     }
 
 
-def build_page(worksheet: Worksheet, page_id: str, binding_id: str) -> dict:
+def build_page(name: str, page_id: str, binding_id: str) -> dict:
     return {
         "$schema": f"{_S}/item/report/definition/page/2.1.0/schema.json",
         "name": page_id,
-        "displayName": worksheet.name,
+        "displayName": name,
         "displayOption": "FitToPage",
         "height": 720,
         "width": 1280,

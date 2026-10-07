@@ -62,8 +62,11 @@ def _is_safe_entry(name: str) -> bool:
     return not (norm.startswith("..") or ".." in PurePosixPath(norm).parts)
 
 
-def _extract_twbx(data: bytes) -> tuple[bytes, Packaging]:
-    """Validate a .twbx ZIP and return (inner .twb bytes, packaging info)."""
+def _extract_twbx(data: bytes) -> tuple[bytes, Packaging, dict[str, bytes]]:
+    """Validate a .twbx ZIP and return (inner .twb bytes, packaging info,
+    bundled flat-file bytes by name). The flat-file bytes let PBIP generation
+    embed the workbook's own packaged data instead of falling back to the
+    relative path Tableau recorded for it (which Power BI cannot open)."""
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile as exc:
@@ -87,6 +90,7 @@ def _extract_twbx(data: bytes) -> tuple[bytes, Packaging]:
 
     packaging = Packaging(kind="twbx")
     inner_twb: bytes | None = None
+    flat_blobs: dict[str, bytes] = {}
 
     for info in infos:
         if info.filename.endswith("/"):
@@ -102,6 +106,9 @@ def _extract_twbx(data: bytes) -> tuple[bytes, Packaging]:
             packaging.inner_twb_name = base
         elif ext in config.FLAT_FILE_EXTENSIONS:
             packaging.flat_files.append({"name": base, "size": info.file_size})
+            # Entry size was already bounded by the pre-scan guard above.
+            with zf.open(info) as fh:
+                flat_blobs[base] = fh.read(config.MAX_ENTRY_BYTES + 1)
         elif ext in config.EXTRACT_EXTENSIONS:
             packaging.extracts.append({"name": base, "size": info.file_size})
 
@@ -111,14 +118,17 @@ def _extract_twbx(data: bytes) -> tuple[bytes, Packaging]:
         raise UploadError("The workbook inside the .twbx is not a valid Tableau .twb.")
 
     packaging.has_extract = bool(packaging.extracts)
-    return inner_twb, packaging
+    return inner_twb, packaging, flat_blobs
 
 
-def validate_and_prepare(filename: str, data: bytes) -> tuple[bytes, Packaging]:
-    """Validate an uploaded file and return (workbook_xml_bytes, packaging).
+def validate_and_prepare(filename: str, data: bytes) -> tuple[bytes, Packaging, dict[str, bytes]]:
+    """Validate an uploaded file and return (workbook_xml_bytes, packaging, flat_blobs).
 
     ``workbook_xml_bytes`` is the ``.twb`` XML to parse: the file itself for a
     ``.twb`` upload, or the extracted embedded workbook for a ``.twbx``.
+    ``flat_blobs`` is ``{}`` for a ``.twb`` (there is nothing bundled); for a
+    ``.twbx`` it carries the bytes of any bundled flat data files (by name),
+    so PBIP generation can embed the workbook's own packaged data.
     """
     ext = PurePosixPath(filename).suffix.lower()
     if ext not in config.ALLOWED_EXTENSIONS:
@@ -128,7 +138,7 @@ def validate_and_prepare(filename: str, data: bytes) -> tuple[bytes, Packaging]:
         _validate_size(data, "twb")
         if not _looks_like_twb(data):
             raise UploadError("This does not look like a Tableau .twb (missing a <workbook> root element).")
-        return data, Packaging(kind="twb")
+        return data, Packaging(kind="twb"), {}
 
     _validate_size(data, "twbx")
     return _extract_twbx(data)

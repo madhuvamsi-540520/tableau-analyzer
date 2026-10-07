@@ -20,6 +20,7 @@ from ..model.ir import (
     Model,
     ProjectionField,
     Relationship,
+    ReportPage,
     Table,
     Worksheet,
 )
@@ -27,6 +28,10 @@ from ..model.ir import (
 _CALC_REF = re.compile(r"\[(Calculation_[0-9]+)\]")
 
 _BRACKET = re.compile(r"\[([^\]]+)\]")
+
+# Tableau derivations that map to a Power BI aggregation (see
+# visual_generator._AGG); every other derivation is a date part or Attr.
+_AGGREGATE_DERIVATIONS = {"Sum", "Avg", "Average", "Min", "Max", "Count", "CountD"}
 
 
 def _strip_brackets(value: str) -> str:
@@ -63,6 +68,10 @@ class TwbParser:
             return model
 
         model.source_caption = datasource.get("caption")
+        extract_conn = datasource.find("extract/connection")
+        model.has_hyper_extract = extract_conn is not None and (
+            extract_conn.get("class", "").lower() in ("hyper", "dataengine")
+        )
         connection = datasource.find("connection")
 
         # 1. named connections
@@ -121,9 +130,10 @@ class TwbParser:
                 )
                 col.format_string = "0" if col.data_type == "int64" else None
 
-        # 7. calculated fields, worksheets
+        # 7. calculated fields, worksheets, dashboards
         self._parse_calculated_fields(datasource, model)
         self._parse_worksheets(model)
+        self._parse_dashboards(model)
 
         return model
 
@@ -325,6 +335,7 @@ class TwbParser:
         fact = model.fact_table()
         fact_name = fact.name if fact else ""
         calc_names = {cf.name for cf in model.calculated_fields}
+        model_cols = {(t.name, c.name) for t in model.tables for c in t.columns}
 
         for ws in self.root.findall("worksheets/worksheet"):
             deps = ws.find(".//datasource-dependencies")
@@ -341,23 +352,35 @@ class TwbParser:
 
             fields: list[ProjectionField] = []
             seen: set[tuple[str, str]] = set()
+            unresolved: list[str] = []
             for ci in deps.findall("column-instance"):
                 ref = ci.get("column", "")
                 derivation = ci.get("derivation", "None")
                 role, is_calc, caption = local.get(ref, ("dimension", False, _strip_brackets(ref)))
-                if is_calc or caption in calc_names:
+                if caption in calc_names:
                     key = ("measure", caption)
                     if key in seen:
                         continue
                     seen.add(key)
                     fields.append(ProjectionField(kind="measure", table=fact_name, property=caption))
+                elif is_calc:
+                    # Groups, bins, sets etc. are calculations Tableau evaluates
+                    # but that never become a model measure/column; projecting
+                    # them binds a field that doesn't exist and breaks the visual.
+                    if caption not in unresolved:
+                        unresolved.append(caption)
                 else:
                     field_key = _strip_brackets(ref)
                     table = self._field_table.get(field_key, fact_name)
                     prop = self._field_source_col.get(field_key, field_key)
-                    # Follow Tableau's aggregation exactly: a derivation other than
-                    # "None" (Sum/Avg/Count/...) becomes an aggregated measure.
-                    aggregated = derivation and derivation != "None"
+                    if (table, prop) not in model_cols:
+                        if prop not in unresolved:
+                            unresolved.append(prop)
+                        continue
+                    # Only real aggregations aggregate. Tableau also uses
+                    # `derivation` for date parts (Year/Month/...) and Attr; those
+                    # project the column itself - "Sum of Order Date" is invalid.
+                    aggregated = derivation in _AGGREGATE_DERIVATIONS
                     kind = "aggregation" if aggregated else "column"
                     key = (kind, prop)
                     if key in seen:
@@ -372,8 +395,49 @@ class TwbParser:
                         )
                     )
 
+            # Groups/bins defined for the sheet but never instantiated on a
+            # shelf are still lost in migration - say so.
+            for _ref, (_role, is_calc, caption) in local.items():
+                if is_calc and caption not in calc_names and caption not in unresolved:
+                    unresolved.append(caption)
+
+            ws_name = ws.get("name", "Sheet")
+            if unresolved:
+                model.warnings.append(
+                    f"Worksheet '{ws_name}': omitted {len(unresolved)} field(s) with no Power BI "
+                    f"model equivalent (Tableau group/bin/set or unresolved column): "
+                    f"{', '.join(unresolved)} - recreate them manually if needed."
+                )
             if fields:
-                model.worksheets.append(Worksheet(name=ws.get("name", "Sheet"), fields=fields))
+                model.worksheets.append(Worksheet(name=ws_name, fields=fields))
+            elif unresolved:
+                model.warnings.append(f"Worksheet '{ws_name}' skipped: none of its fields resolved.")
+
+    def _parse_dashboards(self, model: Model) -> None:
+        """Each Dashboard becomes one composed report page stacking its member
+        worksheets' visuals - this is Tableau's analogue of a Power BI "report".
+        Story containers (dashboards nesting <story-point>) are skipped: a Story
+        is a sequence of dashboard snapshots, not a dashboard itself."""
+        by_name = {ws.name: ws for ws in model.worksheets}
+        container = self.root.find("dashboards")
+        if container is None:
+            return
+
+        for dash in container.findall("dashboard"):
+            if dash.find(".//story-point") is not None:
+                continue
+            name = dash.get("name") or "Dashboard"
+            members: list[Worksheet] = []
+            seen: set[str] = set()
+            for z in dash.iter("zone"):
+                zname = z.get("name")
+                if zname and zname in by_name and zname not in seen:
+                    seen.add(zname)
+                    members.append(by_name[zname])
+            # Never emit a page for a dashboard whose worksheets all have no
+            # placed fields (nothing to show) or carry no resolvable members.
+            if members:
+                model.dashboards.append(ReportPage(name=name, worksheets=members))
 
 
 def parse_twb(xml_text: str, project_name: str) -> Model:

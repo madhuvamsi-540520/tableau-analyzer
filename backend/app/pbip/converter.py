@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import io
+import json
 import re
 import zipfile
 
 from .data import loader as data_loader
-from .generator import dax_rules, llm_translator
+from .generator import dax_rules, excel_scaffold, llm_translator
 from .generator.pbip_generator import build_project
 from .model.ir import Model
 from .parser.twb_parser import parse_twb
@@ -14,7 +15,7 @@ from .report import inventory_xlsx
 
 
 def _project_name(filename: str) -> str:
-    stem = re.sub(r"\.(twb|xml)$", "", filename, flags=re.IGNORECASE)
+    stem = re.sub(r"\.(twbx|twb|xml)$", "", filename, flags=re.IGNORECASE)
     stem = stem.strip() or "Migrated"
     # Keep it filesystem/PBIP friendly.
     return re.sub(r'[<>:"/\\|?*]', "_", stem)
@@ -30,8 +31,13 @@ def _apply_overrides(model: Model, overrides: dict | None) -> None:
             cf.dax, cf.translated, cf.needs_review, cf.method = str(dax).strip(), True, False, "manual"
 
 
+DATA_BUNDLED = "bundled"
+DATA_SAMPLE = "sample"
+
+
 def _embed_data(model: Model, data_files: list | None) -> None:
-    """Attach uploaded data to matching tables as an inline snapshot."""
+    """Attach real data (bundled in the .twbx, or uploaded) to matching tables
+    as an inline snapshot."""
     if not data_files:
         return
     loaded, warnings = data_loader.load_data_files(data_files, model)
@@ -41,7 +47,41 @@ def _embed_data(model: Model, data_files: list | None) -> None:
         if lt is not None:
             table.inline_columns = lt.columns
             table.inline_rows = lt.rows
-            model.warnings.append(f"Embedded {len(lt.rows):,} row(s) into '{table.name}'.")
+            table.data_origin = DATA_BUNDLED
+            model.warnings.append(f"Embedded {len(lt.rows):,} real row(s) into '{table.name}'.")
+
+
+def _embed_sample_data(model: Model) -> None:
+    """Every table without real data gets join-consistent sample rows inline.
+
+    Same rule as obiee-analyzer: the model must never depend on an external
+    file. A Tableau source path is not usable on another machine - it is
+    relative to the .twbx, empty when the data lives only in a .hyper extract,
+    or in another OS's syntax - and Power BI then fails to load with "The
+    supplied file path must be a valid absolute path" / "The path is not of a
+    legal form". Sample rows keep the project openable; the warning says so.
+    """
+    missing = [t for t in model.tables if t.inline_rows is None and t.columns]
+    if not missing:
+        return
+    data = excel_scaffold.sample_rows(model)
+    for table in missing:
+        cols, rows = data[table.name]
+        table.inline_columns = cols
+        table.inline_rows = rows
+        table.data_origin = DATA_SAMPLE
+    model.warnings.append(
+        "No readable source data for " + ", ".join(f"'{t.name}'" for t in missing)
+        + " - embedded SAMPLE rows (join-consistent) so the project opens without an external "
+        "file. Paste real data into the companion 'Data (template).xlsx' to replace them."
+        + _hyper_note(model)
+    )
+
+
+def _hyper_note(model: Model) -> str:
+    if model.has_hyper_extract:
+        return " (This workbook's data is stored in a Tableau .hyper extract, which is not readable offline.)"
+    return ""
 
 
 def _refine_relationships(model: Model) -> None:
@@ -74,11 +114,13 @@ def _build_model(
         llm_translator.translate_model(model, api_key=api_key)
     # User corrections win over everything.
     _apply_overrides(model, overrides)
-    # Embed uploaded data as a snapshot (portable) when requested; otherwise the
-    # partitions keep the original source reference (refreshable, path-dependent).
+    # Embed real data first and orient relationships by its row counts, then
+    # fill every remaining table with sample rows so no partition ever points
+    # at an external path. embed_data=False keeps the original source refs.
     if embed_data:
         _embed_data(model, data_files)
         _refine_relationships(model)
+        _embed_sample_data(model)
     return model
 
 
@@ -93,10 +135,52 @@ def convert(
 ) -> tuple[Model, dict[str, bytes]]:
     model = _build_model(xml_bytes, filename, use_llm, api_key, overrides, data_files, embed_data)
     files = build_project(model)
-    # Bundle the inventory report at the zip root (beside the .pbip; does not
-    # affect opening in Power BI).
+    # Companion artifacts at the zip root (beside the .pbip; the model does not
+    # depend on any of them to open).
     files[f"{model.name} Inventory.xlsx"] = inventory_xlsx.build_inventory_xlsx(model)
+    template_name = f"{model.name} Data (template).xlsx"
+    files[template_name] = excel_scaffold.build_workbook(model)
+    files[f"{model.name} Migration Report.json"] = json.dumps(
+        _report_dict(model, template_name), indent=2
+    ).encode("utf-8")
     return model, files
+
+
+def _data_mode(model: Model) -> str:
+    origins = {t.data_origin for t in model.tables}
+    if origins == {DATA_BUNDLED}:
+        return "Embedded real data (inline)"
+    if DATA_BUNDLED in origins and DATA_SAMPLE in origins:
+        return "Embedded real + sample data (inline)"
+    if origins == {DATA_SAMPLE}:
+        return "Embedded sample data (inline)"
+    return "Original source references"
+
+
+def _report_dict(model: Model, template_name: str) -> dict:
+    return {
+        "project": model.name,
+        "sourceCaption": model.source_caption,
+        "dataSource": {
+            "mode": _data_mode(model),
+            "template": template_name,
+            "tables": {t.name: t.data_origin or "source-reference" for t in model.tables},
+        },
+        "counts": {
+            "tables": len(model.tables),
+            "columns": sum(len(t.columns) for t in model.tables),
+            "relationships": len(model.relationships),
+            "calculatedFields": len(model.calculated_fields),
+            "worksheetPages": len(model.worksheets),
+            "dashboardPages": len(model.dashboards),
+        },
+        "calculatedFields": [
+            {"name": cf.name, "formula": cf.formula, "dax": cf.dax,
+             "method": cf.method, "needsReview": cf.needs_review}
+            for cf in model.calculated_fields
+        ],
+        "warnings": model.warnings,
+    }
 
 
 def build_inventory(
@@ -133,9 +217,26 @@ _HOW_TO_OPEN = (
     "   copy out only the .pbip file - the report/model folders must\r\n"
     "   stay beside it.\r\n"
     "2. Open the EXTRACTED <name>.pbip in Power BI Desktop.\r\n\r\n"
+    "The data is EMBEDDED inside the model, so the project opens fully\r\n"
+    "populated - there is NO external file to locate and NO path to set.\r\n"
+    "Tables whose real data was bundled in the .twbx carry that real data;\r\n"
+    "any table whose data could not be read (e.g. it lives only in a .hyper\r\n"
+    "extract) carries join-consistent SAMPLE rows instead. See\r\n"
+    "'<name> Migration Report.json' for which is which, and paste real data\r\n"
+    "into '<name> Data (template).xlsx' (exact sheet/column names) to replace\r\n"
+    "sample rows.\r\n\r\n"
     "If you see 'Required artifact is missing ... definition.pbir', it\r\n"
     "means the folders were not extracted next to the .pbip - re-extract\r\n"
     "the full zip and try again.\r\n"
+)
+
+
+_EXTRACT_FIRST = (
+    "!!! EXTRACT THIS ZIP FIRST !!!\r\n\r\n"
+    "Right-click the .zip > Extract All, then open the .pbip from the EXTRACTED\r\n"
+    "folder. Do NOT double-click the .pbip while it is still inside the zip - a\r\n"
+    ".pbip needs its sibling .Report and .SemanticModel folders next to it, and\r\n"
+    "Windows only unpacks the single file when you open it from inside the zip.\r\n"
 )
 
 
@@ -143,6 +244,8 @@ def to_zip(files: dict[str, bytes]) -> bytes:
     buf = io.BytesIO()
     # Deterministic order; store paths with forward slashes (zip standard).
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Names starting with "!" sort to the top in Explorer so it's seen first.
+        zf.writestr("! EXTRACT ALL FIRST - README !.txt", _EXTRACT_FIRST)
         zf.writestr("HOW_TO_OPEN.txt", _HOW_TO_OPEN)
         for path in sorted(files):
             zf.writestr(path, files[path])
@@ -168,6 +271,7 @@ def summary(model: Model) -> dict:
     return {
         "projectName": model.name,
         "sourceCaption": model.source_caption,
+        "dataMode": _data_mode(model),
         "counts": {
             "tables": len(model.tables),
             "columns": sum(len(t.columns) for t in model.tables),
@@ -175,12 +279,14 @@ def summary(model: Model) -> dict:
             "calculatedFields": len(model.calculated_fields),
             "translated": translated,
             "worksheets": len(model.worksheets),
+            "dashboardPages": len(model.dashboards),
         },
         "tables": [
             {
                 "name": t.name,
                 "kind": t.kind,
                 "dataLoaded": t.inline_rows is not None,
+                "dataOrigin": t.data_origin,
                 "rowCount": len(t.inline_rows) if t.inline_rows is not None else None,
                 "columns": [
                     {
@@ -225,6 +331,13 @@ def summary(model: Model) -> dict:
                 "fields": [f"{f.property} ({f.kind})" for f in ws.fields],
             }
             for ws in model.worksheets
+        ],
+        "dashboards": [
+            {
+                "name": dash.name,
+                "worksheets": [ws.name for ws in dash.worksheets],
+            }
+            for dash in model.dashboards
         ],
         "connections": [
             {"class": c.cls, "server": c.server, "database": c.database, "filename": c.filename}

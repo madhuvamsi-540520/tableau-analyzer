@@ -54,10 +54,10 @@ async def upload_jobs(
         filename = f.filename or "workbook.twb"
         try:
             raw = await f.read()
-            twb_bytes, packaging = validate_and_prepare(filename, raw)
+            twb_bytes, packaging, flat_blobs = validate_and_prepare(filename, raw)
             workbook_name = PurePosixPath(filename).stem or filename
             metadata = analysis.analyze(twb_bytes, workbook_name, raw, packaging)
-            job = store.create(sid, filename, twb_bytes, len(raw), packaging)
+            job = store.create(sid, filename, twb_bytes, len(raw), packaging, flat_blobs)
             job.metadata = metadata.to_api()
             job.status = "parsed"
             results.append({**job.summary(), "ok": True})
@@ -173,12 +173,14 @@ def _build_pbip_model(job, payload: dict):
     validates structure and flags calcs that need review).
     """
     xml_bytes = store.workbook_bytes(job)
+    data_files = store.data_files(job)
     try:
         return pbip_converter.convert(
             xml_bytes,
             job.filename or "Migrated.twb",
             use_llm=bool(payload.get("useLlm")),
             api_key=payload.get("apiKey"),
+            data_files=data_files,
         )
     except Exception as exc:  # parser/generator failure -> unprocessable, not 500
         raise HTTPException(status_code=422, detail=f"Could not generate PBIP: {exc}")

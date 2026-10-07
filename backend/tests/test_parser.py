@@ -172,7 +172,7 @@ def _make_twbx_with_csv() -> bytes:
 
 def test_twbx_row_counts_applied():
     data = _make_twbx_with_csv()
-    twb_bytes, packaging = validate_and_prepare("bundle.twbx", data)
+    twb_bytes, packaging, _flat_blobs = validate_and_prepare("bundle.twbx", data)
     assert packaging.kind == "twbx"
     wb = analyze(twb_bytes, "bundle", data, packaging)
     orders = wb.data_sources[0].tables[0]

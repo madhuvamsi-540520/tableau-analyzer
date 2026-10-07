@@ -33,11 +33,19 @@ class JobStore:
         twb_bytes: bytes,
         original_size: int,
         packaging: Packaging,
+        flat_blobs: Optional[dict[str, bytes]] = None,
     ) -> Job:
         job = Job(session_id=session_id, filename=filename, packaging=packaging, size=original_size)
         job_dir = self._root / job.id
         job_dir.mkdir(parents=True, exist_ok=True)
         (job_dir / "workbook.twb").write_bytes(twb_bytes)
+        if flat_blobs:
+            data_dir = job_dir / "data"
+            data_dir.mkdir(exist_ok=True)
+            for name, blob in flat_blobs.items():
+                safe_name = Path(name).name  # defense in depth; names are already zip-slip-validated
+                if safe_name:
+                    (data_dir / safe_name).write_bytes(blob)
         job.storage_dir = job_dir
         with self._lock:
             self._jobs[job.id] = job
@@ -69,6 +77,18 @@ class JobStore:
     def workbook_bytes(self, job: Job) -> bytes:
         """The stored .twb XML bytes (used by the parser layer in Phase B)."""
         return (job.storage_dir / "workbook.twb").read_bytes()
+
+    def data_files(self, job: Job) -> list[tuple[str, bytes]]:
+        """Bundled flat-file data from a .twbx upload (name, bytes), if any.
+
+        Used by PBIP generation to embed the workbook's own packaged data
+        instead of falling back to the relative source path Tableau recorded,
+        which Power BI cannot resolve.
+        """
+        data_dir = job.storage_dir / "data"
+        if not data_dir.is_dir():
+            return []
+        return [(p.name, p.read_bytes()) for p in sorted(data_dir.iterdir()) if p.is_file()]
 
     # -- internal ----------------------------------------------------------- #
 

@@ -18,7 +18,17 @@ export default function PbipPreview({ summary }) {
   const c = summary.counts || {};
 
   const tableCols = [
-    { title: "Table", dataIndex: "name", render: (n, r) => <Space>{n}{r.dataLoaded ? <Tag color="green">data</Tag> : null}</Space> },
+    {
+      title: "Table",
+      dataIndex: "name",
+      render: (n, r) => (
+        <Space>
+          {n}
+          {r.dataOrigin === "bundled" ? <Tag color="green">real data</Tag> : null}
+          {r.dataOrigin === "sample" ? <Tag color="gold">sample data</Tag> : null}
+        </Space>
+      ),
+    },
     { title: "Kind", dataIndex: "kind", render: (k) => <Tag>{k || "table"}</Tag> },
     { title: "Columns", align: "right", render: (_, r) => r.columns?.length ?? 0 },
     { title: "Rows", align: "right", dataIndex: "rowCount", render: (v) => (v == null ? "—" : v.toLocaleString()) },
@@ -66,6 +76,7 @@ export default function PbipPreview({ summary }) {
         <Metric title="Calc fields" value={c.calculatedFields} />
         <Metric title="DAX translated" value={c.translated} />
         <Metric title="Worksheets" value={c.worksheets} />
+        <Metric title="Dashboard pages" value={c.dashboardPages} />
       </Row>
 
       {summary.warnings?.length > 0 && (
@@ -77,7 +88,11 @@ export default function PbipPreview({ summary }) {
         />
       )}
 
-      <Card size="small" title={`Semantic model — Tables (${summary.tables?.length || 0})`}>
+      <Card
+        size="small"
+        title={`Semantic model — Tables (${summary.tables?.length || 0})`}
+        extra={summary.dataMode ? <Tag color="blue">{summary.dataMode}</Tag> : null}
+      >
         <Table rowKey="name" size="small" columns={tableCols} dataSource={summary.tables || []} pagination={false} />
       </Card>
 
@@ -86,6 +101,21 @@ export default function PbipPreview({ summary }) {
           <Table rowKey={(r) => `${r.from}->${r.to}`} size="small" columns={relCols} dataSource={summary.relationships} pagination={false} />
         ) : (
           <Empty description="No relationships detected." />
+        )}
+      </Card>
+
+      <Card size="small" title={`Dashboard pages (${summary.dashboards?.length || 0})`}>
+        {summary.dashboards?.length ? (
+          <Space direction="vertical" size={8} style={{ width: "100%" }}>
+            {summary.dashboards.map((d) => (
+              <div key={d.name}>
+                <Text strong>{d.name}</Text>{" "}
+                <Text type="secondary">— composes {d.worksheets.length} worksheet(s): {d.worksheets.join(", ")}</Text>
+              </div>
+            ))}
+          </Space>
+        ) : (
+          <Empty description="No dashboards detected (or none reference a worksheet with placed fields)." />
         )}
       </Card>
 
