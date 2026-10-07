@@ -6,6 +6,7 @@ case-insensitive; missing columns become null, extra columns are ignored.
 """
 from __future__ import annotations
 
+import csv
 import io
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,10 +23,19 @@ class LoadedTable:
 
 
 def _match_table(model: Model, name: str):
-    """Find the model table whose name matches `name` (case-insensitive)."""
+    """Find the model table whose name matches `name` (case-insensitive).
+
+    Tries the model's display name first, then its physical source name
+    (the sheet Tableau actually read): Tableau renames a table when the same
+    physical sheet is joined under different aliases, so a bundled file's
+    sheet/file name may only match the physical name, not the display one.
+    """
     low = (name or "").strip().lower()
     for t in model.tables:
         if t.name.lower() == low:
+            return t
+    for t in model.tables:
+        if t.source_name.lower() == low:
             return t
     return None
 
@@ -87,6 +97,22 @@ def _read_xls(blob: bytes) -> dict[str, tuple[list[str], list[list]]]:
     return out
 
 
+def _read_delimited(blob: bytes) -> tuple[list[str], list[list]]:
+    """Read a .csv/.txt bundled data file. Delimiter is sniffed (comma, tab,
+    semicolon, ...) rather than assumed, since Tableau text-file connections
+    aren't all comma-separated."""
+    text = blob.decode("utf-8-sig", errors="replace")
+    try:
+        dialect = csv.Sniffer().sniff(text[:4096], delimiters=",\t;|")
+    except csv.Error:
+        dialect = csv.excel  # comma default
+    rows = list(csv.reader(io.StringIO(text), dialect))
+    if not rows:
+        return [], []
+    header = [h.strip() or f"Column{i + 1}" for i, h in enumerate(rows[0])]
+    return header, rows[1:]
+
+
 def _read_parquet(blob: bytes) -> tuple[list[str], list[list]]:
     import pyarrow.parquet as pq
 
@@ -126,8 +152,19 @@ def load_data_files(files: list[tuple[str, bytes]], model: Model) -> tuple[dict,
                     continue
                 loaded[table.name] = _align(table, header, rows)
                 unmatched_tables.discard(table.name)
+            elif ext in (".csv", ".txt"):
+                header, rows = _read_delimited(blob)
+                stem = Path(filename).stem
+                table = _match_table(model, stem)
+                if table is None and len(unmatched_tables) == 1:
+                    table = _match_table(model, next(iter(unmatched_tables)))
+                if table is None:
+                    warnings.append(f"Data file '{filename}' did not match any table - skipped.")
+                    continue
+                loaded[table.name] = _align(table, header, rows)
+                unmatched_tables.discard(table.name)
             else:
-                warnings.append(f"Unsupported data file '{filename}' (use .xlsx, .xls or .parquet) - skipped.")
+                warnings.append(f"Unsupported data file '{filename}' (use .xlsx, .xls, .csv, .txt or .parquet) - skipped.")
         except Exception as exc:  # noqa: BLE001 - surface as warning, never crash
             warnings.append(f"Could not read data file '{filename}': {exc}")
 

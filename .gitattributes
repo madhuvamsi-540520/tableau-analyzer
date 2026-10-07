@@ -1,0 +1,17 @@
+# Line endings: LF in the repository, native in the working tree. Without this
+# the same file committed from different machines shows up as a whole-file
+# diff, which is what happened between this repo and the 0710 working copy.
+* text=auto
+
+# Must stay LF or they break inside the Linux container.
+*.sh           text eol=lf
+Dockerfile     text eol=lf
+.dockerignore  text eol=lf
+
+# Binary formats Git should neither diff nor convert.
+*.twbx binary
+*.xlsx binary
+*.pbix binary
+*.png  binary
+*.jpg  binary
+*.ico  binary

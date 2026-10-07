@@ -104,6 +104,14 @@ def _wrap(step_lines: list[str], return_step: str) -> list[str]:
     return body
 
 
+def uses_file_path(conn: Optional[Connection]) -> bool:
+    """True if this table's partition will embed ``conn.filename`` verbatim in
+    a ``File.Contents`` step - the predicate the "no data, unusable path"
+    warning must match exactly, or the two can silently drift apart."""
+    cls = (conn.cls if conn else "") or ""
+    return cls == "excel-direct" or bool(conn and conn.filename)
+
+
 def build_partition_m(table: Table, conn: Optional[Connection]) -> list[str]:
     # Embedded snapshot wins over any external source.
     if table.inline_columns is not None:
@@ -111,7 +119,7 @@ def build_partition_m(table: Table, conn: Optional[Connection]) -> list[str]:
 
     cls = (conn.cls if conn else "") or ""
 
-    if cls == "excel-direct" or (conn and conn.filename):
+    if uses_file_path(conn):
         return _build_excel(table, conn)
     if cls in ("sqlserver", "sqlserver-odbc"):
         return _build_sql_server(table, conn)

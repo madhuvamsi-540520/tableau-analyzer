@@ -63,11 +63,13 @@ def build_project(model: Model) -> dict[str, bytes]:
 
 
 def _emit_pages(files: dict[str, bytes], report_dir: str, model: Model) -> None:
-    """One page per worksheet (each with a Table visual). Falls back to a single
-    empty page when the workbook has no worksheets."""
+    """One page per worksheet (each with a Table visual), followed by one
+    composed page per dashboard (its member worksheets stacked as visuals on a
+    single page - Tableau's analogue of a Power BI "report"). Falls back to a
+    single empty page when the workbook has neither."""
     base = f"{report_dir}/definition/pages"
 
-    if not model.worksheets:
+    if not model.worksheets and not model.dashboards:
         page_id = _hex20()
         files[f"{base}/pages.json"] = encode(render_json(_pages_json([page_id], page_id)))
         files[f"{base}/{page_id}/page.json"] = encode(render_json(_empty_page_json(page_id)))
@@ -78,12 +80,29 @@ def _emit_pages(files: dict[str, bytes], report_dir: str, model: Model) -> None:
         page_id = _hex20()
         page_ids.append(page_id)
         files[f"{base}/{page_id}/page.json"] = encode(
-            render_json(visual_generator.build_page(ws, page_id, _hex20()))
+            render_json(visual_generator.build_page(ws.name, page_id, _hex20()))
         )
         visual_id = _hex20()
         files[f"{base}/{page_id}/visuals/{visual_id}/visual.json"] = encode(
             render_json(visual_generator.build_visual(ws, visual_id))
         )
+
+    for dash in model.dashboards:
+        page_id = _hex20()
+        page_ids.append(page_id)
+        files[f"{base}/{page_id}/page.json"] = encode(
+            render_json(visual_generator.build_page(dash.name, page_id, _hex20()))
+        )
+        for i, ws in enumerate(dash.worksheets):
+            visual_id = _hex20()
+            files[f"{base}/{page_id}/visuals/{visual_id}/visual.json"] = encode(
+                render_json(
+                    visual_generator.build_visual(
+                        ws, visual_id, position=visual_generator.stacked_position(i)
+                    )
+                )
+            )
+
     files[f"{base}/pages.json"] = encode(render_json(_pages_json(page_ids, page_ids[0])))
 
 

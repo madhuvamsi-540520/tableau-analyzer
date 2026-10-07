@@ -94,6 +94,8 @@ class Table:
     # sourcing from the original file/DB. Rows align to inline_columns order.
     inline_columns: Optional[list[str]] = None
     inline_rows: Optional[list[list]] = None
+    # Where the inline rows came from: "bundled" (real data) | "sample" | None
+    data_origin: Optional[str] = None
 
 
 @dataclass
@@ -150,6 +152,14 @@ class Worksheet:
 
 
 @dataclass
+class ReportPage:
+    """A composed Power BI page for one Tableau Dashboard: its member
+    worksheets, each rendered as its own visual stacked on the same page."""
+    name: str
+    worksheets: list[Worksheet] = field(default_factory=list)
+
+
+@dataclass
 class Model:
     name: str                                # PBIP project name (from .twb filename)
     tables: list[Table] = field(default_factory=list)
@@ -157,7 +167,9 @@ class Model:
     connections: dict[str, Connection] = field(default_factory=dict)
     calculated_fields: list[CalculatedField] = field(default_factory=list)
     worksheets: list[Worksheet] = field(default_factory=list)
+    dashboards: list[ReportPage] = field(default_factory=list)
     source_caption: Optional[str] = None     # Tableau datasource caption (informational)
+    has_hyper_extract: bool = False          # data lives in a .hyper/.tde extract (not readable offline)
     warnings: list[str] = field(default_factory=list)
     # field name -> (table, source column); used to resolve refs in calc formulas
     field_lookup: dict[str, tuple[str, str]] = field(default_factory=dict)
